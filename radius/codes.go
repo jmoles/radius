@@ -1,10 +1,12 @@
 package radius
 
+type Code int
+
 // Radius packet codes from RFC 2865
 const (
-	AccessRequest = 1
-	AccessAccept  = 2
-	AccessReject  = 3
+	AccessRequest Code = 1
+	AccessAccept       = 2
+	AccessReject       = 3
 
 	AccountingRequest  = 4
 	AccountingResponse = 5
@@ -50,7 +52,7 @@ const (
 	IPAddressRelese   = 51
 )
 
-var codeText = map[int]string{
+var codeText = map[Code]string{
 	AccessRequest: "Access-Request",
 	AccessAccept:  "Access-Accept",
 	AccessReject:  "Access-Reject",
@@ -97,4 +99,8 @@ var codeText = map[int]string{
 
 	IPAddressAllocate: "IP-Address-Allocate",
 	IPAddressRelese:   "IP-Address-Release",
+}
+
+func (c Code) String() string {
+	return codeText[c]
 }

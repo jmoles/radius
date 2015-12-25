@@ -1,13 +1,15 @@
 package radius
 
+type Attribute int
+
 // Attributes is the key-value pair of attributes in RFC2865.
-type Attributes map[int]string
+type Attributes map[Attribute]string
 
 // Radius attributes from RFC2865 and RFC2882.
 const (
-	UserName     = 1
-	UserPassword = 2
-	CHAPPassword = 3
+	UserName     Attribute = 1
+	UserPassword           = 2
+	CHAPPassword           = 3
 
 	NASIPAddress = 4
 	NASPort      = 5
@@ -59,7 +61,7 @@ const (
 	MessageAuthenticator = 80
 )
 
-var attrText = map[int]string{
+var attrText = map[Attribute]string{
 	UserName:     "User-Name",
 	UserPassword: "User-Password",
 	CHAPPassword: "CHAP-Password",
@@ -112,7 +114,11 @@ var attrText = map[int]string{
 	LoginLATPort:  "Login-LAT-Port",
 }
 
+func (a Attribute) String() string {
+	return attrText[a]
+}
+
 // Add adds a key-value pair to the list of attributes.
-func (a Attributes) Add(key int, value string) {
+func (a Attributes) Add(key Attribute, value string) {
 	a[key] = value
 }
