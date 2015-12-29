@@ -81,7 +81,7 @@ func (conn *connection) Response(ReceivedPacket Packet) {
 
 	var DecodedAttributes = ReceivedPacket.DecodedAttributes()
 
-	if Authenticate(DecodedAttributes[UserName], DecodedAttributes[UserPassword]) {
+	if Authenticate(string(DecodedAttributes[UserName]), string(DecodedAttributes[UserPassword])) {
 		_, err = conn.server.Conn.WriteToUDP(PrepareAccessAccept(ReceivedPacket, conn.server.Secret), conn.remoteAddr)
 	} else {
 		_, err = conn.server.Conn.WriteToUDP(PrepareAccessReject(ReceivedPacket, conn.server.Secret), conn.remoteAddr)

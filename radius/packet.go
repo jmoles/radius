@@ -4,15 +4,37 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/binary"
+	"strings"
 )
 
 // Packet represents a RADIUS packet.
 type Packet struct {
-	Code          int
+	Code          Code
 	Identifier    int
 	Length        int
 	Authenticator [16]byte
 	Attributes    []byte
+}
+
+// Equal compares two packets and returns true if they are the same.
+func (packet *Packet) Equal(other Packet) bool {
+	if packet.Code != other.Code {
+		return false
+	}
+	if packet.Identifier != other.Identifier {
+		return false
+	}
+	if packet.Length != other.Length {
+		return false
+	}
+	if packet.Authenticator != other.Authenticator {
+		return false
+	}
+	if packet.DecodedAttributes().Equal(other.DecodedAttributes()) != true {
+		return false
+	}
+
+	return true
 }
 
 // DecodedAttributes returns the decoded set of Attributes.
@@ -24,7 +46,7 @@ func (packet *Packet) DecodedAttributes() Attributes {
 	for offset < len(packet.Attributes) {
 		AttrType := Attribute(packet.Attributes[0+offset])
 		AttrLen := uint8(packet.Attributes[1+offset])
-		RawAttrVal := string(packet.Attributes[2+offset : int(AttrLen)+offset])
+		RawAttrVal := packet.Attributes[2+offset : int(AttrLen)+offset]
 
 		attr[AttrType] = RawAttrVal
 
@@ -37,7 +59,7 @@ func (packet *Packet) DecodedAttributes() Attributes {
 // DecodePacket takes a received packet, packetIn, and ReceiveLength and returns a decoded version of the packet.
 func DecodePacket(packetIn []byte, ReceiveLength int) (packet Packet) {
 
-	packet.Code = int(packetIn[0])
+	packet.Code = Code(packetIn[0])
 	packet.Identifier = int(binary.BigEndian.Uint16([]byte{0, packetIn[1]}))
 	packet.Length = int(binary.BigEndian.Uint16([]byte{packetIn[2], packetIn[3]}))
 	copy(packet.Authenticator[:], packetIn[4:20])
@@ -74,7 +96,10 @@ func CalculateResponseAuthenticator(rxPacket Packet, length int, format int, sec
 	md5Buff.WriteByte(uint8(rxPacket.Identifier))
 	binary.Write(md5Buff, binary.BigEndian, uint16(length))
 	binary.Write(md5Buff, binary.BigEndian, rxPacket.Authenticator)
+	binary.Write(md5Buff, binary.BigEndian, rxPacket.Attributes)
 	md5Buff.WriteString(secret)
+
+	ReversePassword(rxPacket.DecodedAttributes()[UserPassword], rxPacket.Authenticator, secret)
 
 	return md5.Sum(md5Buff.Bytes())
 }
@@ -101,4 +126,42 @@ func PrepareAccessReject(ReceivedPacket Packet, secret string) []byte {
 	packet.Authenticator = CalculateResponseAuthenticator(ReceivedPacket, packet.Length, AccessReject, secret)
 
 	return packet.packetToBytes()
+}
+
+func ReversePassword(hiddenPassword []byte, authenticator [16]byte, secret string) string {
+
+	offset := 0
+	var password bytes.Buffer
+
+	for offset < len(hiddenPassword) {
+		var pN [16]byte
+		var cN []byte
+		var bN [16]byte
+
+		if offset+16 > len(hiddenPassword) {
+			cN = hiddenPassword[offset:]
+			for len(cN) < 16 {
+				cN = append(cN, 0x00)
+			}
+		} else {
+			cN = hiddenPassword[offset : offset+16]
+		}
+
+		if offset == 0 {
+			bN = md5.Sum(append([]byte(secret), authenticator[:]...))
+		} else {
+			bN = md5.Sum([]byte(secret + string(hiddenPassword[offset-16:offset])))
+		}
+
+		for i := 0; i < 16; i++ {
+			pN[i] = bN[i] ^ cN[i]
+		}
+
+		password.Write(pN[:])
+
+		offset += 16
+
+	}
+
+	return strings.Trim(password.String(), "\x00")
 }

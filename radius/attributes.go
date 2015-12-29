@@ -1,9 +1,10 @@
 package radius
 
+// Attribute represents the Type field in an RFC2865.
 type Attribute int
 
 // Attributes is the key-value pair of attributes in RFC2865.
-type Attributes map[Attribute]string
+type Attributes map[Attribute][]byte
 
 // Radius attributes from RFC2865 and RFC2882.
 const (
@@ -112,13 +113,38 @@ var attrText = map[Attribute]string{
 	NASPortType:   "NAS-Port-Type",
 	PortLimit:     "Port-Limit",
 	LoginLATPort:  "Login-LAT-Port",
+
+	MessageAuthenticator: "Message-Authenticator",
 }
 
 func (a Attribute) String() string {
 	return attrText[a]
 }
 
-// Add adds a key-value pair to the list of attributes.
-func (a Attributes) Add(key Attribute, value string) {
+// Add adds a key-value pair to the list of attributes. If key is already present, value is updated and overwrite returns true.
+func (a Attributes) Add(key Attribute, value []byte) (overwrite bool) {
+	_, present := a[key]
 	a[key] = value
+	return present
+}
+
+// Equal compares two Attributes and returns true if they are the same attributes.
+func (a Attributes) Equal(b Attributes) bool {
+
+	for key, valA := range a {
+		valB, ok := b[key]
+		if ok == false {
+			return false
+		}
+		if len(valB) != len(valA) {
+			return false
+		}
+		for i := 0; i < len(valB); i++ {
+			if valB[i] != valA[i] {
+				return false
+			}
+		}
+	}
+
+	return true
 }
